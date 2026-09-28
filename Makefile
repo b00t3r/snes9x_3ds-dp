@@ -226,6 +226,8 @@ $(OUTPUT).3dsx	:	$(OUTPUT).elf $(OUTPUT).smdh
 else
 $(OUTPUT).3dsx	:	$(OUTPUT).elf
 endif
+	@python3 $(TOPDIR)/tools/fix_arm_relocs.py $(OUTPUT).elf
+	@3dsxtool $(OUTPUT).elf $@ $(_3DSXFLAGS)
 
 $(OUTPUT).elf	:	$(OFILES)
 
