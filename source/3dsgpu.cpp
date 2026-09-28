@@ -482,7 +482,9 @@ bool gpu3dsInitialize()
     gfxInit	(GPU3DS.screenFormat, GPU3DS.screenFormat, false);
 	GPU_Init(NULL);
 
-	gfxSet3D(false);
+	// Keep the framebuffer layout expected by the original SNES9x renderer.
+	// The parallax barrier remains disabled, so Assist Controller stays 2D.
+	gfxSet3D(true);
 
     // Create the frame and depth buffers for the top screen.
     //
