@@ -188,6 +188,14 @@ std::vector<SMenuItem> makeOptionsForOk() {
 }
 
 namespace {
+    enum class AssistMenuMode {
+        Single,
+        Host,
+        Join,
+    };
+
+    AssistMenuMode assistMenuMode = AssistMenuMode::Single;
+
     std::string assistResultText(const std::string& message)
     {
         char resultText[16];
@@ -195,13 +203,28 @@ namespace {
         return message + "\n\nError: 0x" + resultText;
     }
 
-    void refreshAssistStatus(std::vector<SMenuTab>& menuTab)
+    void refreshAssistMenu(std::vector<SMenuTab>& menuTab)
     {
         for (size_t i = 0; i < menuTab.size(); i++)
         {
-            if (menuTab[i].Title == "Assist" && menuTab[i].MenuItems.size() > 1)
+            if (menuTab[i].Title == "Assist" && menuTab[i].MenuItems.size() > 6)
             {
-                menuTab[i].MenuItems[1].Text = "Status: "s + assist3dsGetStatusText();
+                menuTab[i].MenuItems[1].Text = assistMenuMode == AssistMenuMode::Single ? "[X] Single" : "[ ] Single";
+                menuTab[i].MenuItems[2].Text = assistMenuMode == AssistMenuMode::Host ? "[X] Host" : "[ ] Host";
+                menuTab[i].MenuItems[3].Text = assistMenuMode == AssistMenuMode::Join ? "[X] Join" : "[ ] Join";
+                menuTab[i].MenuItems[5].Text = "Status: "s + assist3dsGetStatusText();
+                return;
+            }
+        }
+    }
+
+    void selectMenuTab(std::vector<SMenuTab>& menuTab, int& currentMenuTab, const std::string& title)
+    {
+        for (size_t i = 0; i < menuTab.size(); i++)
+        {
+            if (menuTab[i].Title == title)
+            {
+                currentMenuTab = static_cast<int>(i);
                 return;
             }
         }
@@ -212,10 +235,15 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
 {
     std::vector<SMenuItem> items;
     AddMenuHeader1(items, "Assist Controller");
-    AddMenuDisabledOption(items, "Status: "s + assist3dsGetStatusText());
-    AddMenuDisabledOption(items, "Both consoles control Player 1.");
 
-    AddMenuAction(items, "Host a game", [&menuTab, &currentMenuTab](int val) {
+    AddMenuAction(items, assistMenuMode == AssistMenuMode::Single ? "[X] Single" : "[ ] Single", [&menuTab, &currentMenuTab](int val) {
+        assist3dsStop();
+        assistMenuMode = AssistMenuMode::Single;
+        refreshAssistMenu(menuTab);
+        selectMenuTab(menuTab, currentMenuTab, "Select ROM");
+    });
+
+    AddMenuAction(items, assistMenuMode == AssistMenuMode::Host ? "[X] Host" : "[ ] Host", [&menuTab, &currentMenuTab](int val) {
         SMenuTab dialogTab;
         bool isDialog = false;
 
@@ -223,30 +251,35 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
             "Assist Controller", "Starting a nearby session...", DIALOGCOLOR_CYAN, std::vector<SMenuItem>());
         bool started = assist3dsStartHost();
         menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
-        refreshAssistStatus(menuTab);
 
         if (started)
         {
-            menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
-                "Assist Controller", "Host ready.\n\nOn the second 3DS, choose\nJoin as controller.", DIALOGCOLOR_GREEN, makeOptionsForOk());
+            assistMenuMode = AssistMenuMode::Host;
+            refreshAssistMenu(menuTab);
+            selectMenuTab(menuTab, currentMenuTab, "Select ROM");
         }
         else
         {
+            assistMenuMode = AssistMenuMode::Single;
+            refreshAssistMenu(menuTab);
             menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
                 "Unable to host", assistResultText("The nearby session could not be started."), DIALOGCOLOR_RED, makeOptionsForOk());
+            menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
         }
-        menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
     });
 
-    AddMenuAction(items, "Join as controller", [&menuTab, &currentMenuTab](int val) {
+    AddMenuAction(items, assistMenuMode == AssistMenuMode::Join ? "[X] Join" : "[ ] Join", [&menuTab, &currentMenuTab](int val) {
         SMenuTab dialogTab;
         bool isDialog = false;
+
+        assistMenuMode = AssistMenuMode::Join;
+        refreshAssistMenu(menuTab);
 
         menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
             "Assist Controller", "Looking for a nearby host...", DIALOGCOLOR_CYAN, std::vector<SMenuItem>());
         bool joined = assist3dsJoinHost();
         menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
-        refreshAssistStatus(menuTab);
+        refreshAssistMenu(menuTab);
 
         if (!joined)
         {
@@ -284,7 +317,7 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
 
         assist3dsStop();
         menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
-        refreshAssistStatus(menuTab);
+        refreshAssistMenu(menuTab);
 
         if (connectionLost && !appExiting)
         {
@@ -294,10 +327,9 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
         }
     });
 
-    AddMenuAction(items, "Stop session", [&menuTab](int val) {
-        assist3dsStop();
-        refreshAssistStatus(menuTab);
-    });
+    AddMenuDisabledOption(items, "");
+    AddMenuDisabledOption(items, "Status: "s + assist3dsGetStatusText());
+    AddMenuDisabledOption(items, "Both consoles control Player 1.");
 
     return items;
 }
