@@ -64,6 +64,13 @@ char romFileNameLastSelected[_MAX_PATH];
 static void debugMarker(const char *message)
 {
     svcOutputDebugString(message, strlen(message));
+
+    FILE *debugFile = fopen("sdmc:/snes9x-dp-debug.txt", "a");
+    if (debugFile)
+    {
+        fputs(message, debugFile);
+        fclose(debugFile);
+    }
 }
 
 
