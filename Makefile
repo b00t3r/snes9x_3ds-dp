@@ -47,9 +47,9 @@ INCLUDES	:=	include
 
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
-CFLAGS	:=	-g -w -O3 -mword-relocations -finline-limit=20000 \
+CFLAGS	:=	-g -w -O2 -mword-relocations -finline-limit=20000 \
 			-fomit-frame-pointer -ffunction-sections -fno-jump-tables \
-			-fno-section-anchors \
+			-fno-section-anchors -fno-strict-aliasing -fwrapv \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -DARM11 -D_3DS
