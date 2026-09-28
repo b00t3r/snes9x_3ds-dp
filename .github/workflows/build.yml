@@ -19,7 +19,7 @@ jobs:
         run: |
           git clone https://github.com/devkitPro/libctru.git /tmp/libctru
           git -C /tmp/libctru checkout ee2a1d2eba8978c389f22f71860aa2aea4e2949f
-          sed -i 's/-Wall -O2/-Wall -Wno-error -O2/' /tmp/libctru/libctru/Makefile
+          sed -i 's/-Wall/-Wall -Wno-error -Wno-error=stringop-truncation -Wno-error=stringop-overflow/' /tmp/libctru/libctru/Makefile
           make -C /tmp/libctru/libctru -j2 install
           git clone https://github.com/devkitPro/citro3d.git /tmp/citro3d
           git -C /tmp/citro3d checkout 96e65d48be80f4c5163eee3642f96ecf69d16cb9
