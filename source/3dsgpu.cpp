@@ -23,10 +23,6 @@
 bool somethingWasDrawn = false;
 bool somethingWasFlushed = false;
 
-extern u8* gfxTopRightFramebuffers[2];
-extern u8* gfxTopLeftFramebuffers[2];
-u8* gfxOldTopRightFramebuffers[2];
-
 extern "C" void gfxSetFramebufferInfo(gfxScreen_t screen, u8 id);
 extern "C" void gfxWriteFramebufferInfo(gfxScreen_t screen);
 
@@ -160,35 +156,7 @@ void gpu3dsCheckSlider()
     float sliderVal = *(float*)0x1FF81080;
 
     if (sliderVal != prevSliderVal)
-    {
-        gfxTopRightFramebuffers[0] = gfxTopLeftFramebuffers[0];
-        gfxTopRightFramebuffers[1] = gfxTopLeftFramebuffers[1];
-        
-        if (sliderVal == 0)
-        {
-            gpu3dsSetParallaxBarrier(false);
-        }
-        else if (sliderVal < 0.3)
-        {
-            u8 isNew3DS = 0;
-            APT_CheckNew3DS(&isNew3DS);
-            if (!isNew3DS)
-            {
-                gfxTopRightFramebuffers[0] = gfxOldTopRightFramebuffers[0];
-                gfxTopRightFramebuffers[1] = gfxOldTopRightFramebuffers[1];
-            }
-            gpu3dsSetParallaxBarrier(false);
-        }
-        else if (sliderVal < 0.6)
-            gpu3dsSetParallaxBarrier(false);
-        else
-            gpu3dsSetParallaxBarrier(true);
-
-        u8* fb = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
-        int b = fb == gfxTopLeftFramebuffers[0] ? 0 : 1;
-        gfxSetFramebufferInfo(GFX_TOP, b);
-        gfxWriteFramebufferInfo(GFX_TOP);
-    }
+        gpu3dsSetParallaxBarrier(false);
     prevSliderVal = sliderVal;
 }
 
@@ -514,18 +482,7 @@ bool gpu3dsInitialize()
     gfxInit	(GPU3DS.screenFormat, GPU3DS.screenFormat, false);
 	GPU_Init(NULL);
 
-	gfxSet3D(true);
-
-    gfxOldTopRightFramebuffers[0] = gfxTopRightFramebuffers[0];
-    gfxOldTopRightFramebuffers[1] = gfxTopRightFramebuffers[1];
-    for (int i = 0; i < 400 * 240 * 4; i++)
-    {
-        gfxOldTopRightFramebuffers[0][i] = 0;
-        gfxOldTopRightFramebuffers[1][i] = 0;
-    }
-
-    gfxTopRightFramebuffers[0] = gfxTopLeftFramebuffers[0];
-    gfxTopRightFramebuffers[1] = gfxTopLeftFramebuffers[1];
+	gfxSet3D(false);
 
     // Create the frame and depth buffers for the top screen.
     //
@@ -653,11 +610,6 @@ void gpu3dsFinalize()
     printf("gfxExit:\n");
 #endif
 
-    // Restore the old frame buffers so that gfxExit can properly
-    // free them.
-    //
-    gfxTopRightFramebuffers[0] = gfxOldTopRightFramebuffers[0];
-    gfxTopRightFramebuffers[1] = gfxOldTopRightFramebuffers[1];
 	gfxExit();
 }
 

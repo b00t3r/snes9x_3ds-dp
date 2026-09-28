@@ -1,15 +1,15 @@
 /*
   gpulib.cpp _ Legacy GPU commands.
 */
+#define LIBCTRU_NO_DEPRECATION
 #include <stdlib.h>
 #include <string.h>
 #include <3ds.h>
+#include <3ds/gpu/gx.h>
 
 #include "3dssnes9x.h"
 
 #include "gpulib.h"
-
-#ifndef LIBCTRU_1_0_0
 
 void GPU_Init(Handle *gsphandle)
 {
@@ -306,4 +306,31 @@ void GPU_FinishDrawing()
 	GPUCMD_AddWrite(GPUREG_EARLYDEPTH_CLEAR, 0x00000001);
 }
 
-#endif
+extern u32 __ctru_linear_heap;
+extern u32 __ctru_linear_heap_size;
+
+extern "C" void GPUCMD_Finalize(void)
+{
+    GPUCMD_AddMaskedWrite(GPUREG_PRIMITIVE_CONFIG, 0x8, 0x00000000);
+    GPUCMD_AddWrite(GPUREG_FRAMEBUFFER_FLUSH, 0x00000001);
+    GPUCMD_AddWrite(GPUREG_FRAMEBUFFER_INVALIDATE, 0x00000001);
+    GPUCMD_AddWrite(GPUREG_FINALIZE, 0x12345678);
+    GPUCMD_AddWrite(GPUREG_FINALIZE, 0x12345678);
+}
+
+extern "C" void GPUCMD_FlushAndRun(void)
+{
+    u32 *buffer;
+    u32 offset;
+
+    GPUCMD_GetBuffer(&buffer, NULL, &offset);
+    GX_FlushCacheRegions(
+        buffer,
+        offset * 4,
+        (u32 *)__ctru_linear_heap,
+        __ctru_linear_heap_size,
+        NULL,
+        0
+    );
+    GX_ProcessCommandList(buffer, offset * 4, 0);
+}

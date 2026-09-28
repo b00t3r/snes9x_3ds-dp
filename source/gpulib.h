@@ -6,9 +6,7 @@
  */
 #pragma once
 
-#include <3ds.h>
-
-#ifndef LIBCTRU_1_0_0
+#include <3ds/gpu/gpu.h>
 
 /**
  * @brief Initializes the GPU.
@@ -236,4 +234,13 @@ void GPU_DrawElements(GPU_Primitive_t primitive, u32* indexArray, u32 n);
  */
 void GPU_FinishDrawing();
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void GPUCMD_Finalize(void);
+void GPUCMD_FlushAndRun(void);
+
+#ifdef __cplusplus
+}
 #endif
