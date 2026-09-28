@@ -61,6 +61,11 @@ int framesSkippedCount = 0;
 char romFileName[_MAX_PATH];
 char romFileNameLastSelected[_MAX_PATH];
 
+static void debugMarker(const char *message)
+{
+    svcOutputDebugString(message, strlen(message));
+}
+
 
 void LoadDefaultSettings() {
     settings3DS.PaletteFix = 0;
@@ -1154,6 +1159,7 @@ extern SCheatData Cheat;
 
 void emulatorLoadRom()
 {
+    debugMarker("[snes9x-dp] emulatorLoadRom: begin\n");
     consoleInit(GFX_BOTTOM, NULL);
     gfxSetDoubleBuffering(GFX_BOTTOM, false);
     consoleClear();
@@ -1162,9 +1168,17 @@ void emulatorLoadRom()
     char romFileNameFullPath[_MAX_PATH];
     snprintf(romFileNameFullPath, _MAX_PATH, "%s%s", file3dsGetCurrentDir(), romFileName);
     if (!impl3dsLoadROM(romFileNameFullPath)) {
+        debugMarker("[snes9x-dp] emulatorLoadRom: load failed\n");
         printf("Unable to load ROM: %s\n", romFileNameFullPath);
         return;
     }
+
+    char romDebug[160];
+    snprintf(romDebug, sizeof(romDebug),
+        "[snes9x-dp] emulatorLoadRom: loaded name=%.21s map=%02X type=%02X size=%lu\n",
+        Memory.ROMName, Memory.ROMSpeed, Memory.ROMType,
+        (unsigned long)Memory.CalculatedSize);
+    debugMarker(romDebug);
 
     GPU3DS.emulatorState = EMUSTATE_EMULATE;
 
@@ -1281,6 +1295,7 @@ std::vector<DirectoryEntry> romFileNames; // needs to stay in scope, is there a 
 
 void menuSelectFile(void)
 {
+    debugMarker("[snes9x-dp] menuSelectFile: enter\n");
     std::vector<SMenuTab> menuTab;
     const DirectoryEntry* selectedDirectoryEntry = nullptr;
     int currentMenuTab = 1;
@@ -1299,6 +1314,7 @@ void menuSelectFile(void)
 
         if (selectedDirectoryEntry) {
             if (selectedDirectoryEntry->Type == FileEntryType::File) {
+                debugMarker("[snes9x-dp] menuSelectFile: file selected\n");
                 strncpy(romFileName, selectedDirectoryEntry->Filename.c_str(), _MAX_PATH);
                 strncpy(romFileNameLastSelected, romFileName, _MAX_PATH);
                 menu3dsHideMenu(dialogTab, isDialog, currentMenuTab, menuTab);
@@ -1494,6 +1510,7 @@ void menuSetupCheats(std::vector<SMenuItem>& cheatMenu)
 //--------------------------------------------------------
 void emulatorInitialize()
 {
+    debugMarker("[snes9x-dp] emulatorInitialize: begin\n");
     file3dsInitialize();
 
     romFileNameLastSelected[0] = 0;
@@ -1503,6 +1520,7 @@ void emulatorInitialize()
         printf ("Unable to initialize GPU\n");
         exit(0);
     }
+    debugMarker("[snes9x-dp] emulatorInitialize: GPU ready\n");
 
     printf ("Initializing...\n");
 
@@ -1511,12 +1529,14 @@ void emulatorInitialize()
         printf ("Unable to initialize emulator core\n");
         exit(0);
     }
+    debugMarker("[snes9x-dp] emulatorInitialize: core ready\n");
 
     if (!snd3dsInitialize())
     {
         printf ("Unable to initialize CSND\n");
         exit (0);
     }
+    debugMarker("[snes9x-dp] emulatorInitialize: sound ready\n");
 
     ui3dsInitialize();
 
@@ -1543,6 +1563,7 @@ void emulatorInitialize()
         file3dsInitialize();
 
     srvInit();
+    debugMarker("[snes9x-dp] emulatorInitialize: complete\n");
 }
 
 
@@ -1717,7 +1738,11 @@ void emulatorLoop()
         if (GPU3DS.emulatorState != EMUSTATE_EMULATE)
             break;
 
+        if (firstFrame)
+            debugMarker("[snes9x-dp] emulatorLoop: first frame begin\n");
         impl3dsRunOneFrame(firstFrame, skipDrawingFrame);
+        if (firstFrame)
+            debugMarker("[snes9x-dp] emulatorLoop: first frame complete\n");
 
         firstFrame = false; 
 
@@ -1815,10 +1840,14 @@ void emulatorLoop()
 //---------------------------------------------------------
 int main()
 {
+    debugMarker("[snes9x-dp] main: begin\n");
     emulatorInitialize();
+    debugMarker("[snes9x-dp] main: initialized\n");
     clearTopScreenWithLogo();
+    debugMarker("[snes9x-dp] main: logo drawn\n");
 
     menuSelectFile();
+    debugMarker("[snes9x-dp] main: file menu returned\n");
 
     while (true)
     {
