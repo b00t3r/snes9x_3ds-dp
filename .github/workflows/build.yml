@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Build 3DSX
-        run: make -j2
+        run: make -j2 build
 
       - name: Upload Homebrew Launcher build
         uses: actions/upload-artifact@v4
