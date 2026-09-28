@@ -278,8 +278,10 @@ void snd3dsStartPlaying()
             snd3dsPlaySound(LEFT_CHANNEL, SOUND_REPEAT | SOUND_FORMAT_16BIT, snd3dsSampleRate, 1.0f, 0, (u32*)snd3DS.leftBuffer, (u32*)snd3DS.leftBuffer, snd3dsSampleRate * 2);
         }
 
-        // Flush CSND command buffers
-        csndExecCmds(true);
+        // Submit without entering libctru's unbounded completion busy-wait.
+        // Azahar accepts the CSND commands but does not update the legacy
+        // shared-memory completion flag that csndExecCmds(true) waits on.
+        csndExecCmds(false);
         snd3DS.startTick = svcGetSystemTick();
 
         // Fix for race condition for 64-bit access in the sound thread.
@@ -300,8 +302,9 @@ void snd3dsStopPlaying()
         CSND_SetPlayState(LEFT_CHANNEL, 0);
         CSND_SetPlayState(RIGHT_CHANNEL, 0);
 
-        // Flush CSND command buffers
-        csndExecCmds(true);
+        // The buffers stay allocated until finalization, so stopping does not
+        // need to block on the legacy CSND completion flag either.
+        csndExecCmds(false);
     }
 }
 
