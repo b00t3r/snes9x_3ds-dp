@@ -1694,6 +1694,7 @@ void updateFrameCount()
 //----------------------------------------------------------
 void emulatorLoop()
 {
+	debugMarker("[snes9x-dp] emulatorLoop: enter\n");
 	// Main loop
     //GPU3DS.enableDebug = true;
 
@@ -1707,6 +1708,7 @@ void emulatorLoop()
     snd3DS.generateSilence = false;
 
     gpu3dsResetState();
+    debugMarker("[snes9x-dp] emulatorLoop: GPU state reset\n");
 
     frameCount60 = 60;
     frameCountTick = 0;
@@ -1724,24 +1726,34 @@ void emulatorLoop()
     {
         ui3dsDrawStringWithNoWrapping(0, 100, 320, 115, 0x7f7f7f, HALIGN_CENTER, "Touch screen for menu");
     }
+    debugMarker("[snes9x-dp] emulatorLoop: bottom screen ready\n");
 
     snd3dsStartPlaying();
+    debugMarker("[snes9x-dp] emulatorLoop: sound started\n");
 
 	while (true)
 	{
+        if (firstFrame)
+            debugMarker("[snes9x-dp] emulatorLoop: loop entered\n");
         t3dsStartTiming(1, "aptMainLoop");
 
         startFrameTick = svcGetSystemTick();
         aptMainLoop();
+        if (firstFrame)
+            debugMarker("[snes9x-dp] emulatorLoop: apt ready\n");
 
         if (appExiting || appSuspended)
             break;
 
         gpu3dsStartNewFrame();
+        if (firstFrame)
+            debugMarker("[snes9x-dp] emulatorLoop: GPU frame started\n");
         gpu3dsCheckSlider();
         updateFrameCount();
 
     	input3dsScanInputForEmulation();
+        if (firstFrame)
+            debugMarker("[snes9x-dp] emulatorLoop: input scanned\n");
         if (GPU3DS.emulatorState != EMUSTATE_EMULATE)
             break;
 
