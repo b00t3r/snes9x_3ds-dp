@@ -17,6 +17,7 @@ jobs:
 
       - name: Install the emulator's classic 3DS libraries
         run: |
+          sed -i 's/-Werror//g' "$DEVKITARM/base_rules" "$DEVKITARM/3ds_rules"
           git clone https://github.com/devkitPro/libctru.git /tmp/libctru
           git -C /tmp/libctru checkout ee2a1d2eba8978c389f22f71860aa2aea4e2949f
           sed -i 's/-Wall/-Wall -Wno-error -Wno-error=stringop-truncation -Wno-error=stringop-overflow/' /tmp/libctru/libctru/Makefile
