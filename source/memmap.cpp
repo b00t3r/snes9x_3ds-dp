@@ -861,6 +861,8 @@ again:
 	S9xApplyCheats ();
 	
     S9xReset ();
+
+    return TRUE;
 }
 
 uint32 CMemory::FileLoader (uint8* buffer, const char* filename, int32 maxsize)
@@ -4904,4 +4906,3 @@ void CMemory::ParseSNESHeader(uint8* RomHeader)
 #undef INLINE
 #define INLINE
 #include "getset.h"
-
