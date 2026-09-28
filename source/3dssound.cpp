@@ -188,7 +188,15 @@ void snd3dsMixingThread(void *p)
             svcSleepThread(100000 * 1);
 
         if (snd3DS.isPlaying.load(std::memory_order_acquire))
-            snd3dsMixSamples();
+        {
+            // Publish mixer ownership before checking isPlaying again. This
+            // lets the main thread wait for an in-progress mix without a
+            // window where a new mix could begin after stop returns.
+            snd3DS.mixingSamples.store(true, std::memory_order_release);
+            if (snd3DS.isPlaying.load(std::memory_order_acquire))
+                snd3dsMixSamples();
+            snd3DS.mixingSamples.store(false, std::memory_order_release);
+        }
     }
     svcExitThread();
 }
@@ -293,9 +301,17 @@ void snd3dsStartPlaying()
 //---------------------------------------------------------
 void snd3dsStopPlaying()
 {
-    if (snd3DS.isPlaying.load(std::memory_order_acquire))
+    const bool wasPlaying = snd3DS.isPlaying.exchange(false, std::memory_order_acq_rel);
+
+    // Save states and SRAM serialize memory which the audio core reads.
+    // Do not return until a mix already running on the system core has
+    // finished. The mixer's second isPlaying check closes the race where
+    // it observed playback just before this function cleared the flag.
+    while (snd3DS.mixingSamples.load(std::memory_order_acquire))
+        svcSleepThread(10000);
+
+    if (wasPlaying)
     {
-        snd3DS.isPlaying.store(false, std::memory_order_release);
         CSND_SetPlayState(LEFT_CHANNEL, 0);
         CSND_SetPlayState(RIGHT_CHANNEL, 0);
 
@@ -379,6 +395,7 @@ bool snd3dsInitialize()
 
     // SNES DSP thread
     snd3DS.terminateMixingThread = false;
+    snd3DS.mixingSamples = false;
 
     if (GPU3DS.isReal3DS)
     {

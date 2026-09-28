@@ -68,8 +68,6 @@ u32 input3dsScanInputForEmulation()
         (settings3DS.UseGlobalEmuControlKeys && settings3DS.GlobalButtonHotkeyOpenMenu.IsHeld(keysDown))
         )
     {
-        impl3dsTouchScreenPressed();
-
         if (GPU3DS.emulatorState == EMUSTATE_EMULATE)
             GPU3DS.emulatorState = EMUSTATE_PAUSEMENU;
     }

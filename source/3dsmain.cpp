@@ -1815,13 +1815,10 @@ void emulatorLoop()
 
     snd3dsStopPlaying();
 
-    // Wait for the sound thread to leave the snd3dsMixSamples entirely
-    // to prevent a race condition between the PTMU_GetBatteryChargeState (when
-    // drawing the menu) and GSPGPU_FlushDataCache (in the sound thread).
-    //
-    // (There's probably a better way to do this, but this will do for now)
-    //
-    svcSleepThread(500000);
+    // SRAM and save states share emulation data with the audio core. Stopping
+    // playback above now waits for the mixer to release that data first.
+    if (GPU3DS.emulatorState == EMUSTATE_PAUSEMENU)
+        impl3dsTouchScreenPressed();
 }
 
 

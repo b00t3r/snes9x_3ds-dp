@@ -23,6 +23,7 @@ typedef struct
     Handle      mixingThreadHandle;
     u8          mixingThreadStack[0x4000] __attribute__((aligned(8)));
     std::atomic<bool> terminateMixingThread{false};
+    std::atomic<bool> mixingSamples{false};
 
     u64         startSamplePosition = 0;
     u64         upToSamplePosition = 0;
