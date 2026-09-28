@@ -17,6 +17,7 @@ def main(path: str) -> None:
 
     loads = [s for s in sections if s[1] == 1 and (s[2] & 2)]
     base = min(s[3] for s in loads)
+    top = max(s[3] + s[5] for s in loads)
     changed = 0
 
     for rel in sections:
@@ -39,8 +40,10 @@ def main(path: str) -> None:
                 continue
             value_off = target[4] + offset - target[3]
             value = struct.unpack_from("<I", data, value_off)[0]
-            if value < base and sym_value:
-                struct.pack_into("<I", data, value_off, (value + sym_value) & 0xffffffff)
+            candidate = (value + sym_value) & 0xffffffff
+            if sym_value and (value < base or
+                              (value & 0x80000000 and base <= candidate <= top)):
+                struct.pack_into("<I", data, value_off, candidate)
                 changed += 1
 
     if changed:
