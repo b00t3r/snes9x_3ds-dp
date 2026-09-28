@@ -25,7 +25,7 @@ void handleAptHook(APT_HookType hook, void* param)
             appSuspended = 1;
             if (GPU3DS.emulatorState == EMUSTATE_EMULATE) {
                 snd3dsStopPlaying();
-                if (settings3DS.ForceSRAMWriteOnPause || CPU.SRAMModified || CPU.AutoSaveTimer) {
+                if (settings3DS.ForceSRAMWriteOnPause || CPU.SRAMModified) {
                     S9xAutoSaveSRAM();
                 }
             }

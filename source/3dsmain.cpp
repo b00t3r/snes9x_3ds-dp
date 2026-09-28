@@ -510,15 +510,6 @@ std::vector<SMenuItem> makeOptionsForFrameRate() {
     return items;
 };
 
-std::vector<SMenuItem> makeOptionsForAutoSaveSRAMDelay() {
-    std::vector<SMenuItem> items;
-    AddMenuDialogOption(items, 1, "1 second"s,    ""s);
-    AddMenuDialogOption(items, 2, "10 seconds"s,  ""s);
-    AddMenuDialogOption(items, 3, "60 seconds"s,  ""s);
-    AddMenuDialogOption(items, 4, "Disabled"s,    "Touch bottom screen to save"s);
-    return items;
-};
-
 std::vector<SMenuItem> makeOptionsForInFramePaletteChanges() {
     std::vector<SMenuItem> items;
     AddMenuDialogOption(items, 1, "Enabled"s,          "Best (not 100% accurate); slower"s);
@@ -567,8 +558,7 @@ std::vector<SMenuItem> makeOptionMenu() {
     AddMenuDisabledOption(items, ""s);
 
     AddMenuHeader2(items, "SRAM (Save Data)"s);
-    AddMenuPicker(items, "  SRAM Auto-Save Delay"s, "Try setting to 60 seconds or Disabled this if the game saves SRAM (Save Data) to SD card too frequently."s, makeOptionsForAutoSaveSRAMDelay(), settings3DS.SRAMSaveInterval, DIALOGCOLOR_CYAN, true,
-                  []( int val ) { CheckAndUpdate( settings3DS.SRAMSaveInterval, val, settings3DS.Changed ); });
+    AddMenuDisabledOption(items, "  Saves when paused or exiting"s);
     AddMenuCheckbox(items, "  Force SRAM Write on Pause"s, settings3DS.ForceSRAMWriteOnPause,
                     []( int val ) { CheckAndUpdate( settings3DS.ForceSRAMWriteOnPause, val, settings3DS.Changed ); });
     AddMenuDisabledOption(items, "    (some games like Yoshi's Island require this)"s);
@@ -1836,6 +1826,9 @@ int main()
     }
 
 quit:
+    if (GPU3DS.emulatorState > 0 && (settings3DS.ForceSRAMWriteOnPause || CPU.SRAMModified))
+        S9xAutoSaveSRAM();
+
     if (GPU3DS.emulatorState > 0 && settings3DS.AutoSavestate)
         impl3dsSaveStateAuto();
 

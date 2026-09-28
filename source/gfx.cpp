@@ -988,47 +988,8 @@ void S9xEndScreenRefresh ()
 		}
     }*/
 
-	// Update the save SRAM timer logic.
-	if (CPU.SRAMModified)
-	{
-		// Fixed SRAM saving logic
-		// Can't remember what I used AccumulatedAutoSaveTimer for!
-		//
-		/*if (CPU.AutoSaveTimer > 0)
-		{
-			if (CPU.AccumulatedAutoSaveTimer <= 3600 * 5)  
-			{
-				// if the game continues to write to the SRAM within 18000 frames (approx 5 minutes),
-				// we will keep delaying the save window. 
-				//
-				CPU.AccumulatedAutoSaveTimer += Settings.AutoSaveDelay - CPU.AutoSaveTimer;
-				CPU.AutoSaveTimer = Settings.AutoSaveDelay;		// Auto-save SRAM in x frames.
-			}
-			else
-			{
-				// But once it continuosly writes to the SRAM for 3000 frames, 
-				// we will force the SRAM to save.
-				//
-				CPU.AccumulatedAutoSaveTimer = 0;
-				CPU.AutoSaveTimer = 1;
-			}
-		}*/
-		if (CPU.AutoSaveTimer == 0)
-		{
-			//CPU.AccumulatedAutoSaveTimer = 0;
-			CPU.AutoSaveTimer = Settings.AutoSaveDelay;		// Auto-save SRAM in x frames.
-		}
-	}
-
-	if (CPU.AutoSaveTimer > 0)
-	{
-		CPU.AutoSaveTimer--;
-		if (CPU.AutoSaveTimer == 0)
-		{
-			S9xAutoSaveSRAM ();
-			//CPU.AccumulatedAutoSaveTimer = 0;
-		}		
-	}
+	// SRAM is written while the emulator is paused. Writing to the SD card
+	// here stalls gameplay on real hardware.
 }
 
 void S9xSetInfoString (const char *string)
@@ -5285,6 +5246,5 @@ bool8 S9xSetRenderPixelFormat (int format)
     return (FALSE);
 }
 #endif
-
 
 
