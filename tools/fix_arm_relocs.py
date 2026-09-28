@@ -32,7 +32,7 @@ def main(path: str) -> None:
             if kind not in (2, 38):  # R_ARM_ABS32 / R_ARM_TARGET1
                 continue
             sym_off = symtab[4] + sym_index * symtab[9]
-            sym_value, _, sym_info, _, _, _ = struct.unpack_from("<IIIBBH", data, sym_off)
+            _, sym_value, _, sym_info, _, _ = struct.unpack_from("<IIIBBH", data, sym_off)
             if sym_value == 0 and (sym_info >> 4) == 2:  # unbound weak symbol
                 continue
             if not (target[3] <= offset < target[3] + target[5]):
