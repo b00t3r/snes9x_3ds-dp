@@ -69,7 +69,7 @@ void impl3dsOutputSoundSamples(int numberOfSamples, short *leftSamples, short *r
 // This is called when a ROM needs to be loaded and the
 // emulator engine initialized.
 //---------------------------------------------------------
-void impl3dsLoadROM(char *romFilePath);
+bool impl3dsLoadROM(char *romFilePath);
 
 
 //---------------------------------------------------------

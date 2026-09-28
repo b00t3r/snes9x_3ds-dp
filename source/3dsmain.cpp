@@ -1161,7 +1161,11 @@ void emulatorLoadRom()
 
     char romFileNameFullPath[_MAX_PATH];
     snprintf(romFileNameFullPath, _MAX_PATH, "%s%s", file3dsGetCurrentDir(), romFileName);
-    impl3dsLoadROM(romFileNameFullPath);
+    if (!impl3dsLoadROM(romFileNameFullPath)) {
+        printf("Unable to load ROM: %s\n", romFileNameFullPath);
+        GPU3DS.emulatorState = EMUSTATE_MENU;
+        return;
+    }
 
     GPU3DS.emulatorState = EMUSTATE_EMULATE;
 

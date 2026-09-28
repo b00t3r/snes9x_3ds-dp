@@ -390,9 +390,12 @@ void impl3dsOutputSoundSamples(int numberOfSamples, short *leftSamples, short *r
 // This is called when a ROM needs to be loaded and the
 // emulator engine initialized.
 //---------------------------------------------------------
-void impl3dsLoadROM(char *romFilePath)
+bool impl3dsLoadROM(char *romFilePath)
 {
     bool loaded = Memory.LoadROM(romFilePath);
+    if (!loaded)
+        return false;
+
     Memory.LoadSRAM (S9xGetFilename (".srm"));
 
     gpu3dsInitializeMode7Vertexes();
@@ -400,6 +403,7 @@ void impl3dsLoadROM(char *romFilePath)
     cache3dsInit();	
 
 	DspReset();
+	return true;
 }
 
 
