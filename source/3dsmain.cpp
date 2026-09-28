@@ -1240,8 +1240,9 @@ void fillFileMenuFromFileNames(std::vector<SMenuItem>& fileMenu, const std::vect
     for (size_t i = 0; i < romFileNames.size(); ++i) {
         const DirectoryEntry& entry = romFileNames[i];
         const DirectoryEntry* entryPtr = &romFileNames[i];
-        fileMenu.emplace_back( [entryPtr, &selectedEntry]( int val ) {
-            selectedEntry = entryPtr;
+        const DirectoryEntry** selectedEntryPtr = &selectedEntry;
+        fileMenu.emplace_back( [entryPtr, selectedEntryPtr]( int val ) {
+            *selectedEntryPtr = entryPtr;
         }, MenuItemType::Action, entry.Filename, ""s );
     }
 }
