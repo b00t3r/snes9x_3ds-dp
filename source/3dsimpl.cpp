@@ -25,6 +25,7 @@
 #include "3dssound.h"
 #include "3dsui.h"
 #include "3dsinput.h"
+#include "3dsassist.h"
 #include "3dssettings.h"
 #include "3dsimpl.h"
 #include "3dsimpl_tilecache.h"
@@ -294,6 +295,8 @@ bool impl3dsInitializeCore()
 //---------------------------------------------------------
 void impl3dsFinalize()
 {
+	assist3dsStop();
+
 	// Frees up all vertex lists
 	//
     gpu3dsDeallocVertexList(&GPU3DSExt.mode7TileVertexes);
@@ -914,7 +917,8 @@ uint32 S9xReadJoypad (int which1_0_to_4)
     if (which1_0_to_4 != 0)
         return 0;
 
-	u32 keysHeld3ds = input3dsGetCurrentKeysHeld();
+	assist3dsPollHost();
+	u32 keysHeld3ds = input3dsGetCurrentKeysHeld() | assist3dsGetRemoteKeys();
     u32 consoleJoyPad = 0;
 
     if (keysHeld3ds & KEY_UP) consoleJoyPad |= SNES_UP_MASK;

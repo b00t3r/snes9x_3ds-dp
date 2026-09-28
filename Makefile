@@ -27,9 +27,9 @@ include $(DEVKITARM)/3ds_rules
 #     - icon.png
 #     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
-APP_TITLE	:=	SNES9x for 3DS
-APP_DESCRIPTION	:=	SNES emulator for 3DS.
-APP_AUTHOR	:=	bubble2k16
+APP_TITLE	:=	SNES9x 3DS DP
+APP_DESCRIPTION	:=	SNES emulator with Assist Controller.
+APP_AUTHOR	:=	bubble2k16 / b00t3r
 ASSETS		:=	assets
 ICON		:=	$(ASSETS)/icon.png
 
@@ -88,6 +88,7 @@ CFILES		:=  blargsnes_spc700/dsp.c
 CPPFILES	:=	3dsmain.cpp 3dsmenu.cpp 3dsopt.cpp \
 			3dsgpu.cpp 3dssound.cpp 3dsui.cpp 3dsexit.cpp \
 			3dsconfig.cpp 3dsfiles.cpp 3dsinput.cpp 3dsmatrix.cpp \
+			3dsassist.cpp \
 			3dsimpl.cpp 3dsimpl_tilecache.cpp 3dsimpl_gpu.cpp \
 			gpulib.cpp \
 			bsx.cpp fxinst.cpp fxemu.cpp fxdbg.cpp \

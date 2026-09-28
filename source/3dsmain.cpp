@@ -35,6 +35,7 @@
 #include "3dsconfig.h"
 #include "3dsfiles.h"
 #include "3dsinput.h"
+#include "3dsassist.h"
 #include "3dssettings.h"
 #include "3dsimpl.h"
 #include "3dsimpl_tilecache.h"
@@ -183,6 +184,121 @@ std::vector<SMenuItem> makeOptionsForNoYes() {
 std::vector<SMenuItem> makeOptionsForOk() {
     std::vector<SMenuItem> items;
     AddMenuDialogOption(items, 0, "OK"s, ""s);
+    return items;
+}
+
+namespace {
+    std::string assistResultText(const std::string& message)
+    {
+        char resultText[16];
+        snprintf(resultText, sizeof(resultText), "%08lX", (unsigned long)(u32)assist3dsGetLastResult());
+        return message + "\n\nError: 0x" + resultText;
+    }
+
+    void refreshAssistStatus(std::vector<SMenuTab>& menuTab)
+    {
+        for (size_t i = 0; i < menuTab.size(); i++)
+        {
+            if (menuTab[i].Title == "Assist" && menuTab[i].MenuItems.size() > 1)
+            {
+                menuTab[i].MenuItems[1].Text = "Status: "s + assist3dsGetStatusText();
+                return;
+            }
+        }
+    }
+}
+
+std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& currentMenuTab)
+{
+    std::vector<SMenuItem> items;
+    AddMenuHeader1(items, "Assist Controller");
+    AddMenuDisabledOption(items, "Status: "s + assist3dsGetStatusText());
+    AddMenuDisabledOption(items, "Both consoles control Player 1.");
+
+    AddMenuAction(items, "Host a game", [&menuTab, &currentMenuTab](int val) {
+        SMenuTab dialogTab;
+        bool isDialog = false;
+
+        menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+            "Assist Controller", "Starting a nearby session...", DIALOGCOLOR_CYAN, std::vector<SMenuItem>());
+        bool started = assist3dsStartHost();
+        menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
+        refreshAssistStatus(menuTab);
+
+        if (started)
+        {
+            menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+                "Assist Controller", "Host ready.\n\nOn the second 3DS, choose\nJoin as controller.", DIALOGCOLOR_GREEN, makeOptionsForOk());
+        }
+        else
+        {
+            menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+                "Unable to host", assistResultText("The nearby session could not be started."), DIALOGCOLOR_RED, makeOptionsForOk());
+        }
+        menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
+    });
+
+    AddMenuAction(items, "Join as controller", [&menuTab, &currentMenuTab](int val) {
+        SMenuTab dialogTab;
+        bool isDialog = false;
+
+        menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+            "Assist Controller", "Looking for a nearby host...", DIALOGCOLOR_CYAN, std::vector<SMenuItem>());
+        bool joined = assist3dsJoinHost();
+        menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
+        refreshAssistStatus(menuTab);
+
+        if (!joined)
+        {
+            menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+                "No host found", assistResultText("Start hosting on the other 3DS, then try again."), DIALOGCOLOR_RED, makeOptionsForOk());
+            menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
+            return;
+        }
+
+        menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+            "Controller connected", "Your buttons now control Player 1.\n\nTouch the lower screen to disconnect.", DIALOGCOLOR_GREEN, std::vector<SMenuItem>());
+
+        bool connectionLost = false;
+        bool systemRunning = true;
+        while ((systemRunning = aptMainLoop()))
+        {
+            gspWaitForVBlank();
+            hidScanInput();
+
+            if (hidKeysDown() & KEY_TOUCH)
+                break;
+
+            if (!assist3dsSendControllerKeys(hidKeysHeld() & ~KEY_TOUCH))
+            {
+                connectionLost = true;
+                break;
+            }
+        }
+
+        if (!systemRunning)
+            appExiting = 1;
+
+        if (!connectionLost)
+            assist3dsSendControllerKeys(0);
+
+        assist3dsStop();
+        menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
+        refreshAssistStatus(menuTab);
+
+        if (connectionLost && !appExiting)
+        {
+            menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
+                "Connection lost", assistResultText("The host is no longer reachable."), DIALOGCOLOR_RED, makeOptionsForOk());
+            menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
+        }
+    });
+
+    AddMenuAction(items, "Stop session", [&menuTab](int val) {
+        assist3dsStop();
+        refreshAssistStatus(menuTab);
+    });
+
     return items;
 }
 
@@ -1128,9 +1244,9 @@ void fillFileMenuFromFileNames(std::vector<SMenuItem>& fileMenu, const std::vect
 //----------------------------------------------------------------------
 // Start up menu.
 //----------------------------------------------------------------------
-void setupBootupMenu(std::vector<SMenuTab>& menuTab, std::vector<DirectoryEntry>& romFileNames, const DirectoryEntry*& selectedDirectoryEntry, bool selectPreviousFile) {
+void setupBootupMenu(std::vector<SMenuTab>& menuTab, std::vector<DirectoryEntry>& romFileNames, const DirectoryEntry*& selectedDirectoryEntry, bool selectPreviousFile, int& currentMenuTab) {
     menuTab.clear();
-    menuTab.reserve(2);
+    menuTab.reserve(3);
 
     {
         menu3dsAddTab(menuTab, "Emulator", makeEmulatorNewMenu());
@@ -1148,6 +1264,11 @@ void setupBootupMenu(std::vector<SMenuTab>& menuTab, std::vector<DirectoryEntry>
             menu3dsSetSelectedItemByIndex(menuTab.back(), previousFileID);
         }
     }
+
+    {
+        menu3dsAddTab(menuTab, "Assist", makeAssistMenu(menuTab, currentMenuTab));
+        menuTab.back().SubTitle.clear();
+    }
 }
 
 std::vector<DirectoryEntry> romFileNames; // needs to stay in scope, is there a better way?
@@ -1156,9 +1277,9 @@ void menuSelectFile(void)
 {
     std::vector<SMenuTab> menuTab;
     const DirectoryEntry* selectedDirectoryEntry = nullptr;
-    setupBootupMenu(menuTab, romFileNames, selectedDirectoryEntry, true);
-
     int currentMenuTab = 1;
+    setupBootupMenu(menuTab, romFileNames, selectedDirectoryEntry, true, currentMenuTab);
+
     bool isDialog = false;
     SMenuTab dialogTab;
 
@@ -1179,7 +1300,7 @@ void menuSelectFile(void)
                 return;
             } else if (selectedDirectoryEntry->Type == FileEntryType::ParentDirectory || selectedDirectoryEntry->Type == FileEntryType::ChildDirectory) {
                 file3dsGoUpOrDownDirectory(*selectedDirectoryEntry);
-                setupBootupMenu(menuTab, romFileNames, selectedDirectoryEntry, false);
+                setupBootupMenu(menuTab, romFileNames, selectedDirectoryEntry, false, currentMenuTab);
             }
             selectedDirectoryEntry = nullptr;
         }
@@ -1194,7 +1315,7 @@ void menuSelectFile(void)
 //----------------------------------------------------------------------
 void setupPauseMenu(std::vector<SMenuTab>& menuTab, std::vector<DirectoryEntry>& romFileNames, const DirectoryEntry*& selectedDirectoryEntry, bool selectPreviousFile, int& currentMenuTab, bool& closeMenu, bool refreshFileList) {
     menuTab.clear();
-    menuTab.reserve(4);
+    menuTab.reserve(6);
 
     {
         menu3dsAddTab(menuTab, "Emulator", makeEmulatorMenu(menuTab, currentMenuTab, closeMenu));
@@ -1213,6 +1334,11 @@ void setupPauseMenu(std::vector<SMenuTab>& menuTab, std::vector<DirectoryEntry>&
 
     {
         menu3dsAddTab(menuTab, "Cheats", makeCheatMenu());
+        menuTab.back().SubTitle.clear();
+    }
+
+    {
+        menu3dsAddTab(menuTab, "Assist", makeAssistMenu(menuTab, currentMenuTab));
         menuTab.back().SubTitle.clear();
     }
 

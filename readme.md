@@ -4,6 +4,18 @@ Snes9x for 3DS is a high-compatibility SNES emulator for your Old 3DS / 2DS. It 
 
 It also runs on your New 3DS, and performs much faster! Use your New 3DS if you want to play SuperFX and SA-1 games!
 
+## Assist Controller (SNES9x 3DS DP)
+
+Assist Controller lets a second nearby 3DS help control Player 1 over local wireless. Inputs from both systems are combined in real time, so either player can perform a difficult movement or button combination without passing the host system back and forth.
+
+Use the same SNES9x 3DS DP build on both systems:
+
+1. On the system running the game, open the **Assist** tab and choose **Host a game**. Load or resume the game after the host is ready.
+2. On the helper system, open the **Assist** tab and choose **Join as controller**.
+3. The helper's buttons now control Player 1 together with the host's buttons. Touch the lower screen on the helper system to disconnect.
+
+The feature uses direct 3DS local wireless and does not require an internet connection. The helper system sends controller input only; the game, video, and audio remain on the host.
+
 Download the latest from:
    https://github.com/bubble2k16/snes9x_3ds/releases
 

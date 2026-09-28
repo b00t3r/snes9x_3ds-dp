@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build 3DSX
+        run: make -j2
+
+      - name: Upload Homebrew Launcher build
+        uses: actions/upload-artifact@v4
+        with:
+          name: snes9x-3ds-dp
+          path: |
+            *.3dsx
+            *.smdh
+          if-no-files-found: error
