@@ -62,7 +62,7 @@ typedef struct
 
 typedef struct
 {
-    GSPGPU_FramebufferFormat    screenFormat;
+    GSPGPU_FramebufferFormats   screenFormat;
     GPU_TEXCOLOR                frameBufferFormat;
 
     u32                 *frameBuffer;

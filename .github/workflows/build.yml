@@ -15,6 +15,15 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Install the emulator's classic 3DS libraries
+        run: |
+          git clone https://github.com/devkitPro/libctru.git /tmp/libctru
+          git -C /tmp/libctru checkout ee2a1d2eba8978c389f22f71860aa2aea4e2949f
+          make -C /tmp/libctru/libctru -j2 install
+          git clone https://github.com/devkitPro/citro3d.git /tmp/citro3d
+          git -C /tmp/citro3d checkout 96e65d48be80f4c5163eee3642f96ecf69d16cb9
+          make -C /tmp/citro3d -j2 install
+
       - name: Build 3DSX
         run: make -j2
 
