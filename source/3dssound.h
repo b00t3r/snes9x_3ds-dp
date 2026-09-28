@@ -1,3 +1,5 @@
+#include <atomic>
+
 #include "3ds.h"
 
 #ifndef _3DSSOUND_H_
@@ -7,8 +9,8 @@
 
 typedef struct 
 {
-    bool        isPlaying = false;
-    bool        generateSilence = false;
+    std::atomic<bool> isPlaying{false};
+    std::atomic<bool> generateSilence{false};
     
     int         audioType = 0;              // 0 - no audio, 1 - CSND, 2 - DSP
     short       *fullBuffers;
@@ -20,7 +22,7 @@ typedef struct
 
     Handle      mixingThreadHandle;
     u8          mixingThreadStack[0x4000] __attribute__((aligned(8)));
-    bool        terminateMixingThread;
+    std::atomic<bool> terminateMixingThread{false};
 
     u64         startSamplePosition = 0;
     u64         upToSamplePosition = 0;

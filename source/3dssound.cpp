@@ -182,20 +182,14 @@ void snd3dsMixSamples()
 //---------------------------------------------------------
 void snd3dsMixingThread(void *p)
 {
-    snd3DS.upToSamplePosition = snd3dsGetSamplePosition();
-    snd3DS.startSamplePosition = snd3DS.upToSamplePosition;
-    //svcExitThread();
-    //return;
-
-    while (!snd3DS.terminateMixingThread)
+    while (!snd3DS.terminateMixingThread.load(std::memory_order_acquire))
     {
         if (!GPU3DS.isReal3DS)
             svcSleepThread(100000 * 1);
 
-        if (snd3DS.isPlaying)
+        if (snd3DS.isPlaying.load(std::memory_order_acquire))
             snd3dsMixSamples();
     }
-    snd3DS.terminateMixingThread = -1;
     svcExitThread();
 }
 
@@ -256,7 +250,7 @@ Result snd3dsPlaySound(int chn, u32 flags, u32 sampleRate, float vol, float pan,
 //---------------------------------------------------------
 void snd3dsStartPlaying()
 {
-    if (!snd3DS.isPlaying)
+    if (!snd3DS.isPlaying.load(std::memory_order_acquire))
     {
         for (int i = 0; i < SAMPLEBUFFER_SIZE; i++)
         {
@@ -288,7 +282,8 @@ void snd3dsStartPlaying()
 
         // Fix for race condition for 64-bit access in the sound thread.
         snd3DS.upToSamplePosition = snd3dsGetSamplePosition();  
-        snd3DS.isPlaying = true;
+        // Publish the initialized clock and buffer positions to the mixer.
+        snd3DS.isPlaying.store(true, std::memory_order_release);
     }
 }
 
@@ -298,9 +293,9 @@ void snd3dsStartPlaying()
 //---------------------------------------------------------
 void snd3dsStopPlaying()
 {
-    if (snd3DS.isPlaying)
+    if (snd3DS.isPlaying.load(std::memory_order_acquire))
     {
-        snd3DS.isPlaying = false;
+        snd3DS.isPlaying.store(false, std::memory_order_release);
         CSND_SetPlayState(LEFT_CHANNEL, 0);
         CSND_SetPlayState(RIGHT_CHANNEL, 0);
 
@@ -369,7 +364,7 @@ bool snd3dsInitialize()
     snd3DS.fullBuffers = (short *)linearAlloc(SAMPLEBUFFER_SIZE * 2 * 2);
 	snd3DS.leftBuffer = &snd3DS.fullBuffers[0];
 	snd3DS.rightBuffer = &snd3DS.fullBuffers[SAMPLEBUFFER_SIZE];
-    memset(snd3DS.fullBuffers, 0, sizeof(SAMPLEBUFFER_SIZE * 2 * 2));
+    memset(snd3DS.fullBuffers, 0, SAMPLEBUFFER_SIZE * 2 * sizeof(short));
 
     if (!snd3DS.fullBuffers)
     {
