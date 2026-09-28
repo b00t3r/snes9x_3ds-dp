@@ -244,8 +244,10 @@ Result snd3dsPlaySound(int chn, u32 flags, u32 sampleRate, float vol, float pan,
 		// Now that the first block is playing, configure the size of the subsequent blocks
 		size -= paddr1 - paddr0;
 		CSND_SetBlock(chn, 1, paddr1, size);
-	}
+    }
     CSND_SetPlayState(chn, 1);
+
+    return 0;
 }
 
 
