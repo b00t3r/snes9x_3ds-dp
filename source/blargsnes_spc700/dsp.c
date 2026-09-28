@@ -1,6 +1,7 @@
 // This code has been taken from SNemulDS which is licensed under GPLv2.
 // Credits go to Archeide and whoever else participated in this.
 
+#include <string.h>
 #include "dsp.h"
 
 // DSP write buffers
