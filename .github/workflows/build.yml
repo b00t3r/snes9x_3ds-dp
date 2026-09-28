@@ -25,4 +25,6 @@ jobs:
           path: |
             *.3dsx
             *.smdh
+            *.elf
+            *.map
           if-no-files-found: error
