@@ -30,18 +30,27 @@ public:
     }
 
     size_t write(const void* ptr, int count) {
-        if (Position + count <= BufferSize) {
-            memcpy(&Buffer[Position], ptr, count);
-            Position += count;
-        } else {
-            int space = BufferSize - Position;
-            if (space > 0) {
-                memcpy(&Buffer[Position], ptr, space);
-                Position += space;
-            }
-            flush();
-            write(((const char*)ptr) + space, count - space);
+        if (count <= 0)
+            return 0;
+
+        const char* source = static_cast<const char*>(ptr);
+        int remaining = count;
+
+        while (remaining > 0) {
+            if (Position == BufferSize)
+                flush();
+
+            int chunk = BufferSize - Position;
+            if (chunk > remaining)
+                chunk = remaining;
+
+            memcpy(&Buffer[Position], source, chunk);
+            Position += chunk;
+            source += chunk;
+            remaining -= chunk;
         }
+
+        return static_cast<size_t>(count);
     }
 
     void flush() {
