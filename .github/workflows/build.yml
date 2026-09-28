@@ -9,7 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: devkitpro/devkitarm
+      # GCC 16 currently produces 3DSX relocations rejected by Azahar and
+      # the Homebrew Launcher for this legacy codebase. Keep the last GCC 15
+      # toolchain until the emulator's low-level GPU code is modernized.
+      image: devkitpro/devkitarm:20260221
 
     steps:
       - name: Check out source
