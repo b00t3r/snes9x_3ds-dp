@@ -283,6 +283,8 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
 
         if (!joined)
         {
+            assistMenuMode = AssistMenuMode::Single;
+            refreshAssistMenu(menuTab);
             menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
                 "No host found", assistResultText("Start hosting on the other 3DS, then try again."), DIALOGCOLOR_RED, makeOptionsForOk());
             menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
@@ -292,7 +294,7 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
         menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
             "Controller connected", "Your buttons now control Player 1.\n\nTouch the lower screen to disconnect.", DIALOGCOLOR_GREEN, std::vector<SMenuItem>());
 
-        bool connectionLost = false;
+        Assist3dsControllerConnection connectionState = Assist3dsControllerConnection::Connected;
         bool systemRunning = true;
         while ((systemRunning = aptMainLoop()))
         {
@@ -302,9 +304,13 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
             if (hidKeysDown() & KEY_TOUCH)
                 break;
 
+            connectionState = assist3dsPollControllerConnection();
+            if (connectionState != Assist3dsControllerConnection::Connected)
+                break;
+
             if (!assist3dsSendControllerKeys(hidKeysHeld() & ~KEY_TOUCH))
             {
-                connectionLost = true;
+                connectionState = Assist3dsControllerConnection::ConnectionLost;
                 break;
             }
         }
@@ -312,17 +318,22 @@ std::vector<SMenuItem> makeAssistMenu(std::vector<SMenuTab>& menuTab, int& curre
         if (!systemRunning)
             appExiting = 1;
 
-        if (!connectionLost)
+        if (connectionState == Assist3dsControllerConnection::Connected)
             assist3dsSendControllerKeys(0);
 
         assist3dsStop();
+        assistMenuMode = AssistMenuMode::Single;
         menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
         refreshAssistMenu(menuTab);
 
-        if (connectionLost && !appExiting)
+        if (connectionState != Assist3dsControllerConnection::Connected && !appExiting)
         {
+            const bool hostEnded = connectionState == Assist3dsControllerConnection::HostEndedSession;
             menu3dsShowDialog(dialogTab, isDialog, currentMenuTab, menuTab,
-                "Connection lost", assistResultText("The host is no longer reachable."), DIALOGCOLOR_RED, makeOptionsForOk());
+                hostEnded ? "Session ended" : "Connection lost",
+                hostEnded ? "The host ended the session." : "Lost connection to host.",
+                hostEnded ? DIALOGCOLOR_CYAN : DIALOGCOLOR_RED,
+                makeOptionsForOk());
             menu3dsHideDialog(dialogTab, isDialog, currentMenuTab, menuTab);
         }
     });
@@ -1304,7 +1315,7 @@ void menuSelectFile(void)
 {
     std::vector<SMenuTab> menuTab;
     const DirectoryEntry* selectedDirectoryEntry = nullptr;
-    int currentMenuTab = 1;
+    int currentMenuTab = 2;
     setupBootupMenu(menuTab, romFileNames, selectedDirectoryEntry, true, currentMenuTab);
 
     bool isDialog = false;

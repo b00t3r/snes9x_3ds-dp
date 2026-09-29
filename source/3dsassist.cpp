@@ -16,13 +16,18 @@ namespace {
     const size_t ASSIST_SCAN_BUFFER_SIZE = 0x4000;
     const int ASSIST_SCAN_ATTEMPTS = 20;
 
+    enum AssistPacketType : u16 {
+        ASSIST_PACKET_INPUT = 0,
+        ASSIST_PACKET_HOST_ENDED_SESSION = 1,
+    };
+
     const char ASSIST_PASSPHRASE[] = "snes9x-dp-assist-v1";
     const char ASSIST_APPLICATION_DATA[] = "SNES9X-DP ASSIST 1";
 
-    struct AssistInputPacket {
+    struct AssistPacket {
         u32 magic;
         u16 version;
-        u16 reserved;
+        u16 type;
         u32 sequence;
         u32 keys;
     };
@@ -57,7 +62,35 @@ void assist3dsStop()
     sendSequence = 0;
 
     if (mode == Assist3dsMode::Host)
+    {
+        AssistPacket packet;
+        packet.magic = ASSIST_PACKET_MAGIC;
+        packet.version = ASSIST_PROTOCOL_VERSION;
+        packet.type = ASSIST_PACKET_HOST_ENDED_SESSION;
+        packet.sequence = sendSequence++;
+        packet.keys = 0;
+
+        // Give connected controllers a clear reason before destroying the
+        // network. Sending on both sides of a VBlank gives the first frame
+        // time to leave the host without making shutdown noticeably slower.
+        udsSendTo(
+            UDS_BROADCAST_NETWORKNODEID,
+            ASSIST_DATA_CHANNEL,
+            UDS_SENDFLAG_Default,
+            &packet,
+            sizeof(packet)
+        );
+        gspWaitForVBlank();
+        udsSendTo(
+            UDS_BROADCAST_NETWORKNODEID,
+            ASSIST_DATA_CHANNEL,
+            UDS_SENDFLAG_Default,
+            &packet,
+            sizeof(packet)
+        );
+        gspWaitForVBlank();
         udsDestroyNetwork();
+    }
     else if (mode == Assist3dsMode::Controller)
         udsDisconnectNetwork();
 
@@ -211,7 +244,7 @@ void assist3dsPollHost()
 
     while (true)
     {
-        AssistInputPacket packet;
+        AssistPacket packet;
         size_t receivedSize = 0;
         u16 sourceNode = 0;
 
@@ -229,7 +262,8 @@ void assist3dsPollHost()
         if (sourceNode != UDS_HOST_NETWORKNODEID &&
             receivedSize == sizeof(packet) &&
             packet.magic == ASSIST_PACKET_MAGIC &&
-            packet.version == ASSIST_PROTOCOL_VERSION)
+            packet.version == ASSIST_PROTOCOL_VERSION &&
+            packet.type == ASSIST_PACKET_INPUT)
         {
             remoteKeys = packet.keys;
             lastInputTime = osGetTime();
@@ -253,10 +287,10 @@ bool assist3dsSendControllerKeys(u32 keys)
     if (mode != Assist3dsMode::Controller)
         return false;
 
-    AssistInputPacket packet;
+    AssistPacket packet;
     packet.magic = ASSIST_PACKET_MAGIC;
     packet.version = ASSIST_PROTOCOL_VERSION;
-    packet.reserved = 0;
+    packet.type = ASSIST_PACKET_INPUT;
     packet.sequence = sendSequence++;
     packet.keys = keys;
 
@@ -269,6 +303,51 @@ bool assist3dsSendControllerKeys(u32 keys)
     );
 
     return !UDS_CHECK_SENDTO_FATALERROR(lastResult);
+}
+
+Assist3dsControllerConnection assist3dsPollControllerConnection()
+{
+    if (mode != Assist3dsMode::Controller)
+        return Assist3dsControllerConnection::ConnectionLost;
+
+    while (true)
+    {
+        AssistPacket packet;
+        size_t receivedSize = 0;
+        u16 sourceNode = 0;
+
+        lastResult = udsPullPacket(
+            &bindContext,
+            &packet,
+            sizeof(packet),
+            &receivedSize,
+            &sourceNode
+        );
+
+        if (R_FAILED(lastResult) || receivedSize == 0)
+            break;
+
+        if (sourceNode == UDS_HOST_NETWORKNODEID &&
+            receivedSize == sizeof(packet) &&
+            packet.magic == ASSIST_PACKET_MAGIC &&
+            packet.version == ASSIST_PROTOCOL_VERSION &&
+            packet.type == ASSIST_PACKET_HOST_ENDED_SESSION)
+        {
+            return Assist3dsControllerConnection::HostEndedSession;
+        }
+    }
+
+    udsConnectionStatus status;
+    lastResult = udsGetConnectionStatus(&status);
+
+    if (R_FAILED(lastResult) ||
+        (status.node_bitmask & BIT(0)) == 0 ||
+        status.total_nodes < 2)
+    {
+        return Assist3dsControllerConnection::ConnectionLost;
+    }
+
+    return Assist3dsControllerConnection::Connected;
 }
 
 Assist3dsMode assist3dsGetMode()
