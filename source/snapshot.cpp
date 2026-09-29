@@ -555,9 +555,12 @@ bool8 S9xFreezeGame (const char *filename)
 		S9xPrepareSoundForSnapshotSave (FALSE);
 		
 		S9xFreezeToStream (stream);
-		stream.close();
+		int closeResult = stream.close();
 
 		S9xPrepareSoundForSnapshotSave (TRUE);
+
+		if (stream.failed() || closeResult != 0)
+			return (FALSE);
 
 		/*if(S9xMovieActive())
 		{
@@ -1879,4 +1882,3 @@ fread(&temp, 1, 4, fs);
     fclose (fs);
     return (FALSE);
 }
-

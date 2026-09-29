@@ -5,59 +5,44 @@
 
 class BufferedFileWriter {
     FILE* RawFilePointer;
-    char* Buffer;
-    int Position;
-    static const int BufferSize = 1024 * 512; // 512 KB is big enough to hold all savestates I've seen.
+    bool WriteFailed;
 
 public:
-    BufferedFileWriter() : RawFilePointer(NULL), Position(0) {
-        Buffer = new char[BufferSize];
-    }
+    BufferedFileWriter() : RawFilePointer(NULL), WriteFailed(false) {}
 
     ~BufferedFileWriter() {
         close();
-        delete[] Buffer;
     }
 
     bool open(const char* filename, const char* mode) {
         RawFilePointer = fopen(filename, mode);
+        WriteFailed = false;
         return RawFilePointer != NULL;
     }
 
     bool open(int fd, const char* mode) {
         RawFilePointer = fdopen(fd, mode);
+        WriteFailed = false;
         return RawFilePointer != NULL;
     }
 
     size_t write(const void* ptr, int count) {
-        if (count <= 0)
+        if (count <= 0 || !RawFilePointer)
             return 0;
 
-        const char* source = static_cast<const char*>(ptr);
-        int remaining = count;
-
-        while (remaining > 0) {
-            if (Position == BufferSize)
-                flush();
-
-            int chunk = BufferSize - Position;
-            if (chunk > remaining)
-                chunk = remaining;
-
-            memcpy(&Buffer[Position], source, chunk);
-            Position += chunk;
-            source += chunk;
-            remaining -= chunk;
-        }
-
-        return static_cast<size_t>(count);
+        size_t written = fwrite(ptr, 1, static_cast<size_t>(count), RawFilePointer);
+        if (written != static_cast<size_t>(count))
+            WriteFailed = true;
+        return written;
     }
 
     void flush() {
-        if (RawFilePointer && Position > 0) {
-            fwrite(Buffer, 1, Position, RawFilePointer);
-            Position = 0;
-        }
+        if (RawFilePointer && fflush(RawFilePointer) != 0)
+            WriteFailed = true;
+    }
+
+    bool failed() const {
+        return WriteFailed;
     }
 
     int close() {
@@ -65,6 +50,8 @@ public:
             flush();
             int rv = fclose(RawFilePointer);
             RawFilePointer = NULL;
+            if (rv != 0)
+                WriteFailed = true;
             return rv;
         }
         return -1;
