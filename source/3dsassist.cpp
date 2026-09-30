@@ -13,6 +13,8 @@ namespace {
     const u32 ASSIST_PACKET_MAGIC = 0x41535431;
     const u16 ASSIST_PROTOCOL_VERSION = 1;
     const u64 ASSIST_INPUT_TIMEOUT_MS = 250;
+    const u64 ASSIST_CONNECTION_LOSS_TIMEOUT_MS = 1000;
+    const int ASSIST_SEND_ATTEMPTS = 4;
     const size_t ASSIST_SCAN_BUFFER_SIZE = 0x4000;
     const int ASSIST_SCAN_ATTEMPTS = 20;
 
@@ -40,6 +42,23 @@ namespace {
     u32 remoteKeys = 0;
     u32 sendSequence = 0;
     u64 lastInputTime = 0;
+    u64 controllerStatusFailureTime = 0;
+    u64 controllerSendFailureTime = 0;
+    bool controllerStatusFailureActive = false;
+    bool controllerSendFailureActive = false;
+
+    void resetControllerConnectionState()
+    {
+        controllerStatusFailureTime = 0;
+        controllerSendFailureTime = 0;
+        controllerStatusFailureActive = false;
+        controllerSendFailureActive = false;
+    }
+
+    bool controllerFailureExpired(bool active, u64 failureTime)
+    {
+        return active && osGetTime() - failureTime >= ASSIST_CONNECTION_LOSS_TIMEOUT_MS;
+    }
 
     bool initializeUds()
     {
@@ -60,6 +79,7 @@ void assist3dsStop()
     remoteKeys = 0;
     lastInputTime = 0;
     sendSequence = 0;
+    resetControllerConnectionState();
 
     if (mode == Assist3dsMode::Host)
     {
@@ -234,6 +254,7 @@ bool assist3dsJoinHost()
 
     bindInitialized = true;
     mode = Assist3dsMode::Controller;
+    resetControllerConnectionState();
     return true;
 }
 
@@ -294,15 +315,43 @@ bool assist3dsSendControllerKeys(u32 keys)
     packet.sequence = sendSequence++;
     packet.keys = keys;
 
-    lastResult = udsSendTo(
-        UDS_HOST_NETWORKNODEID,
-        ASSIST_DATA_CHANNEL,
-        UDS_SENDFLAG_Default,
-        &packet,
-        sizeof(packet)
-    );
+    for (int attempt = 0; attempt < ASSIST_SEND_ATTEMPTS; attempt++)
+    {
+        lastResult = udsSendTo(
+            UDS_HOST_NETWORKNODEID,
+            ASSIST_DATA_CHANNEL,
+            UDS_SENDFLAG_Default,
+            &packet,
+            sizeof(packet)
+        );
 
-    return !UDS_CHECK_SENDTO_FATALERROR(lastResult);
+        if (R_SUCCEEDED(lastResult))
+        {
+            controllerSendFailureActive = false;
+            return true;
+        }
+
+        if (UDS_CHECK_SENDTO_FATALERROR(lastResult))
+        {
+            if (!controllerSendFailureActive)
+            {
+                controllerSendFailureTime = osGetTime();
+                controllerSendFailureActive = true;
+            }
+
+            return !controllerFailureExpired(
+                controllerSendFailureActive,
+                controllerSendFailureTime
+            );
+        }
+
+        // libctru marks this result as nonfatal but also reports that this
+        // particular frame was not sent. Retry the latest button state briefly;
+        // the next frame will send a fresh state if all attempts still miss.
+        svcSleepThread(250000);
+    }
+
+    return true;
 }
 
 Assist3dsControllerConnection assist3dsPollControllerConnection()
@@ -340,9 +389,26 @@ Assist3dsControllerConnection assist3dsPollControllerConnection()
     udsConnectionStatus status;
     lastResult = udsGetConnectionStatus(&status);
 
-    if (R_FAILED(lastResult) ||
-        (status.node_bitmask & BIT(0)) == 0 ||
-        status.total_nodes < 2)
+    bool hostPresent = R_SUCCEEDED(lastResult) &&
+        (status.node_bitmask & BIT(0)) != 0 &&
+        status.total_nodes >= 2;
+
+    if (hostPresent)
+    {
+        controllerStatusFailureActive = false;
+    }
+    else if (!controllerStatusFailureActive)
+    {
+        controllerStatusFailureTime = osGetTime();
+        controllerStatusFailureActive = true;
+    }
+
+    if (controllerFailureExpired(
+            controllerStatusFailureActive,
+            controllerStatusFailureTime) ||
+        controllerFailureExpired(
+            controllerSendFailureActive,
+            controllerSendFailureTime))
     {
         return Assist3dsControllerConnection::ConnectionLost;
     }
